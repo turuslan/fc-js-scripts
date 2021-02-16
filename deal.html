@@ -1,0 +1,35 @@
+<pre id="out1"></pre>
+<pre id="out2"></pre>
+<script src="api.js"></script>
+<script>
+  let PreCommitChallengeDelay = 150
+
+  const out1 = Out('out1')
+  const out2 = Out('out2')
+  out1('lotus2 connecting').flush()
+  let lotus2
+  apiReconnect('tmp-deal/repo-lotus2', null, async api => {
+    lotus2 = api
+    api.chainNotify(onTsSlow(async ts => {
+      const tsk = ts.Cids, h = ts.Height
+      out1.clear()
+      out1(`height ${ts.Height} (${tsk.length})`)
+      for (const miner of await api.call('StateListMiners', tsk)) {
+        const counts = await api.call('StateMinerSectorCount', miner, tsk)
+        let i = counts.Live
+        while (await api.call('StateMinerSectorAllocated', miner, i, tsk)) {
+          const precommit = await api.call('StateSectorPreCommitInfo', miner, i, tsk)
+          const challenge = precommit.PreCommitEpoch + PreCommitChallengeDelay
+          if (h < challenge) {
+            out1(`precommit challenge ${miner} sector ${i} at ${challenge} in ${challenge - h}`)
+          }
+          ++i
+        }
+      }
+      out1.flush()
+    }))
+    api.chan('ClientGetDealUpdates', deal => {
+      out2(JSON.stringify(deal)).flush()
+    })
+  })
+</script>
