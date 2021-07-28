@@ -98,6 +98,13 @@ async function runFuhon(_dir, tag, _api, _port, { debug=false }={}) {
   }
 }
 
+async function runFuhonMinerPreseal(_dir, tag, node, _api) {
+  throw new Error('TODO')
+}
+async function createFuhonMiner(_dir, tag, node, _api) {
+  throw new Error('TODO')
+}
+
 async function runLotus(_dir, tag, _api, { debug=false, clear=true }={}) {
   const repo = join(_dir, `repo-${tag}`)
   if (clear) {
@@ -264,84 +271,21 @@ asyncMain(module, async () => {
     return owner
   }
 
-  const lotus1 = await runFuhon(_dir, 'fuhon1', port++, port++, { debug: 'DF1' in process.env })
-  // const lotus1 = await runLotus(_dir, 'lotus1', port++, { debug: 'DL1' in process.env }); ++port
+  // const lotus1 = await runFuhon(_dir, 'fuhon1', port++, port++, { debug: 'DF1' in process.env })
+  const lotus1 = await runLotus(_dir, 'lotus1', port++, { debug: 'DL1' in process.env }); ++port
   const genesisNode = lotus1
 
-  if ('TEST-import') {
-    const _file = join(_dir, 'file.txt')
-    writeFileSync(_file, 'a'.repeat(1931))
-    const _car = `${_file}.car`
-    writeFileSync(_car, readFileSync(join(__dirname, 'file.txt.car')))
-    const _payload = (await lotus1.api.call('ClientImport', { Path: _file, IsCAR: false })).Root
-    // const _payload = (await lotus1.api.call('ClientImport', { Path: _car, IsCAR: true })).Root
-
-    print('TEST-import')
-    return
-  }
-
-  const lotus2 = await runFuhon(_dir, 'fuhon2', port++, port++, { debug: 'DF2' in process.env })
-  // const lotus2 = await runLotus(_dir, 'lotus2', port++); ++port
+  // const lotus2 = await runFuhon(_dir, 'fuhon2', port++, port++, { debug: 'DF2' in process.env })
+  const lotus2 = await runLotus(_dir, 'lotus2', port++); ++port
   await lotus2.api.call('NetConnect', await lotus1.api.call('NetAddrsListen'))
-  // var lotus2 = lotus1 // TEST-e TEST-f
   lotus2.api.chainNotify(ts => print(`HEIGHT ${ts.Blocks[0].Height} (${ts.Blocks.length})`))
-  // lotus1.api.chainNotify(ts => print(`HEIGHT ${ts.Blocks[0].Height} (${ts.Blocks.length})`))
 
   print('start genesis miner1')
+  // const miner1 = await runFuhonMinerPreseal(_dir, 'miner1', 0, lotus1, port++)
   const miner1 = await runLotusMinerPreseal(_dir, 'miner1', 0, lotus1, port++, { debug1: 'D1M1' in process.env, debug2: 'D2M1' in process.env })
 
   const F = 18, L = (c, n, s) => typeof s !== 'string' || typeof c !== 'string' ? L('' + c, n, '' + s) : s.length < n ? c.repeat(n - s.length) + s : s
-  const FIL = a => `${L(' ', 9, a.slice(0, -F) || '0')}.${L(' ', F, a.slice(-F))}`
-  const _FIL = '0'.repeat(18)
-  if (!'TEST-confidence') {
-    const user1 = await genesisNode.api.call('WalletDefaultAddress')
-    const user2 = await genesisNode.api.call('WalletNew', 'bls')
-    const smsg = await lotus1.api.call('MpoolPushMessage', {
-      To: user2, From: user1, Value: '1000'+_FIL,
-      Version: 0, Nonce: 0, GasLimit: 0, GasFeeCap: '0', GasPremium: '0', Method: 0, Params: '',
-    }, null)
-    print('MSG', smsg.CID['/'])
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 0, 5, false); print('MSG 0 (+.)')
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 0, 5, false); print('MSG 0 (++)')
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 1, 5, false); print('MSG 1')
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 2, 5, false); print('MSG 2')
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 3, 5, false); print('MSG 3')
-    await lotus1.api.call('StateWaitMsg', smsg.CID, 4, 5, false); print('MSG 4')
-    print('TEST-confidence DONE')
-    return
-  }
-  if (!'TEST-a') {
-    const user1 = await genesisNode.api.call('WalletDefaultAddress')
-    const user2 = await lotus2.api.call('WalletNew', 'bls')
-    print('user1', FIL(await lotus2.api.call('WalletBalance', user1)))
-    print('user2', FIL(await lotus1.api.call('WalletBalance', user2)))
 
-    const smsg1 = await lotus1.api.call('MpoolPushMessage', {
-      To: user2, From: user1, Value: '1000'+_FIL,
-      Version: 0, Nonce: 0, GasLimit: 0, GasFeeCap: '0', GasPremium: '0', Method: 0, Params: '',
-    }, null)
-    print('MSG1', smsg1.CID['/'])
-    await lotus1.api.call('StateWaitMsg', smsg1.CID, 1, 10, 0)
-    print('MSG1 1')
-    await lotus2.api.call('StateWaitMsg', smsg1.CID, 1, 10, 0)
-    print('MSG1 2')
-    print('user1', FIL(await lotus2.api.call('WalletBalance', user1)))
-    print('user2', FIL(await lotus1.api.call('WalletBalance', user2)))
-
-    const smsg2 = await lotus2.api.call('MpoolPushMessage', {
-      To: user1, From: user2, Value: '999'+_FIL,
-      Version: 0, Nonce: 0, GasLimit: 0, GasFeeCap: '0', GasPremium: '0', Method: 0, Params: '',
-    }, null)
-    print('MSG2', smsg2.CID['/'])
-    await lotus1.api.call('StateWaitMsg', smsg2.CID, 1, 10, 0)
-    print('MSG2 1')
-    await lotus2.api.call('StateWaitMsg', smsg2.CID, 1, 10, 0)
-    print('MSG2 2')
-    print('user1', FIL(await lotus2.api.call('WalletBalance', user1)))
-    print('user2', FIL(await lotus1.api.call('WalletBalance', user2)))
-    print('TEST-a DONE')
-    return
-  }
   async function trackSector(m, i) {
     while (!(await m.api.call('SectorsList')).includes(i)) {
       await sleep(1000)
@@ -352,117 +296,26 @@ asyncMain(module, async () => {
       s = r.State
       if (s !== _s) {
         _s = s
-        print(`PLEDGE: ${s}`)
+        print(`SECTOR ${i}: ${s}`)
         if (s === 'Proving') return
-        if (/fail/i.test(s)) return console.log(`\x1b[31mPLEDGE: ${s}\x1b[0m`)
+        if (/fail/i.test(s)) return console.log(`\x1b[31mSECTOR: ${s}\x1b[0m`)
       }
       await sleep(1000)
     }
   }
-  if (!'TEST-b') {
-    print('TEST-b PLEDGE')
+  if ('TEST-PLEDGE') {
+    print('TEST-PLEDGE')
     await miner1.api.call('PledgeSector')
     await trackSector(miner1, 1)
-    print('TEST-b DONE')
+    print('TEST-PLEDGE DONE')
     return
   }
 
   print('create miner2 owner')
   await makeAccount(lotus2, fromFil(100000))
   print('create miner2')
+  // const miner2 = await createFuhonMiner(_dir, 'miner2', lotus2, port++)
   const miner2 = await createLotusMiner(_dir, 'miner2', lotus2, port++)
-  // var miner2 = miner1 // TEST-e TEST-f
 
-  if (!'TEST-d') {
-    print('TEST-d PLEDGE')
-    await miner2.api.call('PledgeSector')
-    await trackSector(miner2, 0)
-    print('TEST-d DONE')
-    return
-  }
-
-  print('create client1')
-  const client1 = await makeAccount(lotus2, fromFil(10))
-  // lotus2.api.chainNotify(ts => lotus2.api.call('StateMarketBalance', client1, ts.Key).then(x => print(`${ts.Height} ${client1} ${x.Escrow}`)))
-
-  // const storageDealDone = new Promise((resolve, reject) => lotus2.api.chan('ClientGetDealUpdates', deal => {
-  //   const state = _StorageDealStatus[deal.State]
-  //   print(`STORAGE DEAL ${state} ${deal.Message}`)
-  //   if (state === 'StorageDealActive') {
-  //     return resolve()
-  //   }
-  //   if (['StorageDealFailing'].includes(state)) {
-  //     return reject(JSON.stringify(deal))
-  //   }
-  // }))
-  const storageDealDone = Promise.resolve().then(async () => {
-    let _s, s
-    while (true) {
-      const rs = await lotus2.api.call('ClientListDeals'), [r] = rs
-      s = r ? _StorageDealStatus[r.State] : 'ZERO'
-      if (s !== _s) {
-        _s = s
-        print(`STORAGE: ${s}`)
-        if (s === 'StorageDealActive') return
-        if (/fail|reject|error/i.test(s)) {
-          console.log(`\x1b[31mSTORAGE: ${s}\x1b[0m`)
-          throw new Error(JSON.stringify(r))
-        }
-      }
-      await sleep(1000)
-    }
-  })
-
-  const _file = join(_dir, 'file.txt')
-  writeFileSync(_file, 'a'.repeat(1931))
-  const _car = `${_file}.car`
-  // await lotus2.api.call('ClientGenCar', { Path: _file }, _car)
-  writeFileSync(_car, readFileSync(join(__dirname, 'file.txt.car')))
-  // const _payload = (await lotus2.api.call('ClientImport', { Path: _file, IsCAR: false })).Root
-  const _payload = (await lotus2.api.call('ClientImport', { Path: _car, IsCAR: true })).Root
-
-  trackSector(miner2, miner2 === miner1 ? 1 : 0)
-
-  print('start storage deal')
-  await lotus2.api.call('ClientStartDeal', {
-    Data: {
-      TransferType: 'graphsync', Root: _payload,
-
-      PieceCid: null,
-      PieceSize: 0,
-    },
-    Wallet: client1,
-    Miner: miner2.miner,
-    EpochPrice: '1000',
-    MinBlocksDuration: 180 * 2880,
-    DealStartEpoch: await lotus2.api.height() + 220,
-
-    ProviderCollateral: '0',
-    FastRetrieval: false,
-    VerifiedDeal: false,
-  })
-
-  await storageDealDone
-  print('STORAGE DEAL DONE')
-
-  const offers = await lotus2.api.call('ClientFindData', _payload, null), [offer] = offers
-  print('OFFER', JSON.stringify(offer, null, 2))
-  const order = {
-		Root:                    offer.Root,
-		Piece:                   offer.Piece,
-		Size:                    offer.Size,
-		Total:                   offer.MinPrice,
-		UnsealPrice:             offer.UnsealPrice,
-		PaymentInterval:         offer.PaymentInterval,
-		PaymentIntervalIncrease: offer.PaymentIntervalIncrease,
-		Client:                  client1,
-		Miner:                   offer.Miner,
-		MinerPeer:               offer.MinerPeer || null,
-
-    LocalStore: null,
-  }
-  print('ORDER', JSON.stringify(order, null, 2))
-  print('start retrieval deal')
-  await lotus2.api.call('ClientRetrieve', order, { Path: join(_dir, 'retrieved-file.txt'), IsCAR: false })
-  print('RETRIEVAL DEAL DONE')
+  throw new Error('TODO')
 })
