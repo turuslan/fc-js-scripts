@@ -14,7 +14,8 @@ class Api {
         const cb = this._chans[params[0]]
         cb && cb(params[1])
       } else {
-        this._calls[id](error && new Error(`[${error.code}] ${error.message}`), result)
+        const [cb, method] = this._calls[id]
+        cb(error && new Error(`${method} [${error.code}] ${error.message}`), result)
         delete this._calls[id]
       }
     }
@@ -25,8 +26,9 @@ class Api {
     if (this._ws.readyState !== this._ws.OPEN) {
       return Promise.reject('WebSocket not writable')
     }
-    this._ws.send(JSON.stringify({ jsonrpc: '2.0', method, id, params }))
-    return new Promise((resolve, reject) => this._calls[id] = (error, result) => error ? reject(error) : resolve(result))
+    const s = JSON.stringify({ jsonrpc: '2.0', method, id, params })
+    this._ws.send(s)
+    return new Promise((resolve, reject) => this._calls[id] = [(error, result) => error ? reject(error) : resolve(result), method])
   }
   async chan(method, cb, ...params) {
     const id = await this.call(method, ...params)
